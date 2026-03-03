@@ -1,0 +1,2 @@
+# OS-LAB-2
+FCFS SJF
