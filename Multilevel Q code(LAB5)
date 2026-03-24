@@ -1,0 +1,169 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 100
+
+typedef struct {
+    int id;
+    int at, bt, rt;
+    int ct, wt, tat;
+    int type;
+} Process;
+
+typedef struct {
+    Process q[MAX];
+    int front, rear;
+} Queue;
+
+void initQueue(Queue *q) {
+    q->front = q->rear = -1;
+}
+
+int isEmpty(Queue *q) {
+    return q->front == -1;
+}
+
+void enqueue(Queue *q, Process p) {
+    if (q->rear == MAX - 1) return;
+    if (q->front == -1) q->front = 0;
+    q->q[++q->rear] = p;
+}
+
+Process dequeue(Queue *q) {
+    Process p = q->q[q->front];
+    if (q->front == q->rear) {
+        q->front = q->rear = -1;
+    } else {
+        q->front++;
+    }
+    return p;
+}
+
+int compareArrival(const void *a, const void *b) {
+    Process *p1 = (Process *)a;
+    Process *p2 = (Process *)b;
+    return p1->at - p2->at;
+}
+
+int main() {
+    int n;
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    Process plist[n];
+    for (int i = 0; i < n; i++) {
+        printf("\nProcess %d\n", i);
+        printf("Enter arrival time: ");
+        scanf("%d", &plist[i].at);
+        printf("Enter burst time: ");
+        scanf("%d", &plist[i].bt);
+        printf("Enter type (0 = System, 1 = User): ");
+        scanf("%d", &plist[i].type);
+
+        plist[i].id = i;
+        plist[i].rt = plist[i].bt;
+        plist[i].ct = plist[i].wt = plist[i].tat = 0;
+    }
+
+    qsort(plist, n, sizeof(Process), compareArrival);
+
+    Queue sysQ, userQ;
+    initQueue(&sysQ);
+    initQueue(&userQ);
+
+    int time = 0, completed = 0, i = 0;
+    Process *curr = NULL;
+
+
+    int gantt_p[MAX];
+    int gantt_t[MAX];
+    int g = 0;
+    gantt_t[g] = 0;
+
+    while (completed < n) {
+
+        while (i < n && plist[i].at <= time) {
+            if (plist[i].type == 0)
+                enqueue(&sysQ, plist[i]);
+            else
+                enqueue(&userQ, plist[i]);
+            i++;
+        }
+
+
+        if (curr != NULL && curr->type == 1 && !isEmpty(&sysQ)) {
+            enqueue(&userQ, *curr);
+            curr = NULL;
+        }
+
+
+        if (curr == NULL) {
+            if (!isEmpty(&sysQ)) {
+                Process p = dequeue(&sysQ);
+                curr = (Process *)malloc(sizeof(Process));
+                *curr = p;
+            } else if (!isEmpty(&userQ)) {
+                Process p = dequeue(&userQ);
+                curr = (Process *)malloc(sizeof(Process));
+                *curr = p;
+            } else {
+                time++;
+                continue;
+            }
+        }
+
+
+        curr->rt--;
+        gantt_p[g] = curr->id;
+        g++;
+        gantt_t[g] = ++time;
+
+
+        if (curr->rt == 0) {
+            curr->ct = time;
+            curr->tat = curr->ct - curr->at;
+            curr->wt = curr->tat - curr->bt;
+
+
+            for (int k = 0; k < n; k++) {
+                if (plist[k].id == curr->id) {
+                    plist[k] = *curr;
+                    break;
+                }
+            }
+
+            completed++;
+            free(curr);
+            curr = NULL;
+        }
+    }
+
+
+    float avgWT = 0, avgTAT = 0;
+    printf("\nID\tType\tAT\tBT\tCT\tWT\tTAT\n");
+    for (int k = 0; k < n; k++) {
+        printf("%d\t%s\t%d\t%d\t%d\t%d\t%d\n",
+               plist[k].id,
+               plist[k].type == 0 ? "System" : "User",
+               plist[k].at, plist[k].bt,
+               plist[k].ct, plist[k].wt, plist[k].tat);
+        avgWT += plist[k].wt;
+        avgTAT += plist[k].tat;
+    }
+    printf("\nAverage Waiting Time: %.2f", avgWT / n);
+    printf("\nAverage Turnaround Time: %.2f\n", avgTAT / n);
+
+
+    printf("\nGantt Chart:\n");
+    for (int i = 0; i < g; i++) {
+        printf("| P%d ", gantt_p[i]);
+    }
+    printf("|\n");
+    for (int i = 0; i <= g; i++) {
+        printf("%-4d ", gantt_t[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
