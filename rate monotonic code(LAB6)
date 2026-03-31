@@ -1,0 +1,112 @@
+#include <stdio.h>
+#include <math.h>
+
+typedef struct {
+    int id, period, exec_time, remaining;
+    int waiting_time, turnaround_time, last_finish, completion_time;
+} Task;
+
+int gcd(int a, int b) { return (b == 0) ? a : gcd(b, a % b); }
+int lcm(int a, int b) { return (a * b) / gcd(a, b); }
+
+int compute_hyperperiod(Task tasks[], int n) {
+    int h = tasks[0].period;
+    for (int i = 1; i < n; i++) h = lcm(h, tasks[i].period);
+    return h;
+}
+
+double utilization_bound(int n) {
+    return n * (pow(2.0, 1.0/n) - 1);
+}
+
+void print_gantt_chart(int schedule[], int length) {
+    printf("\nRate Monotonic Gantt Chart\n");
+    for (int t = 0; t < length; t++) printf("----");
+    printf("-\n");
+
+    for (int t = 0; t < length; t++) {
+        if (schedule[t] == -1) printf("| - ");
+        else printf("|T%d ", schedule[t]);
+    }
+    printf("|\n");
+
+    for (int t = 0; t < length; t++) printf("----");
+    printf("-\n");
+
+    for (int t = 0; t < length; t++) printf("%2d  ", t);
+    printf("\n");
+}
+
+int main() {
+    int n;
+    printf("Enter number of tasks: ");
+    scanf("%d", &n);
+
+    Task tasks[n];
+    double U = 0.0;
+    for (int i = 0; i < n; i++) {
+        printf("Enter Task %d (Period ExecTime): ", i+1);
+        scanf("%d %d", &tasks[i].period, &tasks[i].exec_time);
+        tasks[i].id = i+1;
+        tasks[i].remaining = 0;
+        tasks[i].waiting_time = 0;
+        tasks[i].turnaround_time = 0;
+        tasks[i].last_finish = 0;
+        tasks[i].completion_time = 0;
+        U += (double)tasks[i].exec_time / tasks[i].period;
+    }
+
+    double bound = utilization_bound(n);
+    printf("\nTotal Utilization U = %.3f", U);
+    printf("\nUtilization Bound for %d tasks = %.3f\n", n, bound);
+
+    if (U > bound) {
+        printf(" Task set is NOT guaranteed schedulable under RMS.\n");
+        return 0; // stop here, no Gantt chart
+    }
+
+    printf(" Task set is GUARANTEED schedulable under RMS.\n");
+
+    int hyperperiod = compute_hyperperiod(tasks, n);
+    int schedule[hyperperiod];
+
+    for (int t = 0; t < hyperperiod; t++) {
+        int chosen = -1;
+        for (int i = 0; i < n; i++) {
+            if (t % tasks[i].period == 0) {
+                tasks[i].remaining = tasks[i].exec_time;
+                tasks[i].waiting_time += (t - tasks[i].last_finish);
+            }
+            if (tasks[i].remaining > 0) {
+                if (chosen == -1 || tasks[i].period < tasks[chosen].period)
+                    chosen = i;
+            }
+        }
+        if (chosen != -1) {
+            tasks[chosen].remaining--;
+            schedule[t] = tasks[chosen].id;
+            if (tasks[chosen].remaining == 0) {
+                tasks[chosen].last_finish = t+1;
+                tasks[chosen].completion_time = t+1;
+                tasks[chosen].turnaround_time += (t+1);
+            }
+        } else schedule[t] = -1;
+    }
+
+    print_gantt_chart(schedule, hyperperiod);
+
+    printf("\nID\tBT\tPeriod\tCT\tWT\tTAT\n");
+    double avg_wait=0, avg_turn=0;
+    for (int i=0;i<n;i++) {
+        printf("%d\t%d\t%d\t%d\t%d\t%d\n", tasks[i].id, tasks[i].exec_time,
+               tasks[i].period, tasks[i].completion_time,
+               tasks[i].waiting_time, tasks[i].turnaround_time);
+        avg_wait += tasks[i].waiting_time;
+        avg_turn += tasks[i].turnaround_time;
+    }
+    printf("\nAverage Waiting Time: %.2f", avg_wait/n);
+    printf("\nAverage Turnaround Time: %.2f\n", avg_turn/n);
+
+    return 0;
+}
+
