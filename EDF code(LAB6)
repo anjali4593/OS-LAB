@@ -1,0 +1,99 @@
+#include <stdio.h>
+
+typedef struct {
+    int id, period, exec_time, deadline, remaining;
+    int waiting_time, turnaround_time, last_finish, completion_time;
+} Task;
+
+void print_gantt_chart(int schedule[], int length) {
+    printf("\nEarliest Deadline First Gantt Chart\n");
+    for (int t = 0; t < length; t++) printf("----");
+    printf("-\n");
+
+    for (int t = 0; t < length; t++) {
+        if (schedule[t] == -1) printf("| - ");
+        else printf("|T%d ", schedule[t]);
+    }
+    printf("|\n");
+
+    for (int t = 0; t < length; t++) printf("----");
+    printf("-\n");
+
+    for (int t = 0; t < length; t++) printf("%2d  ", t);
+    printf("\n");
+}
+
+int main() {
+    int n;
+    printf("Enter number of tasks: ");
+    scanf("%d", &n);
+
+    Task tasks[n];
+    double U = 0.0;
+    for (int i = 0; i < n; i++) {
+        printf("Enter Task %d (Period Deadline ExecTime): ", i+1);
+        scanf("%d %d %d", &tasks[i].period, &tasks[i].deadline, &tasks[i].exec_time);
+        tasks[i].id = i+1;
+        tasks[i].remaining = 0;
+        tasks[i].waiting_time = 0;
+        tasks[i].turnaround_time = 0;
+        tasks[i].last_finish = 0;
+        tasks[i].completion_time = 0;
+        U += (double)tasks[i].exec_time / tasks[i].period;
+    }
+
+    printf("\nTotal Utilization U = %.3f\n", U);
+
+    if (U > 1.0) {
+        printf(" Task set is NOT schedulable under EDF.\n");
+        return 0; // stop here, no Gantt chart
+    }
+
+    printf(" Task set is SCHEDULABLE under EDF.\n");
+
+    // simulate up to a fixed horizon (say 20 units)
+    int horizon = 20;
+    int schedule[horizon];
+    int deadlines[n];
+    for (int i=0;i<n;i++) deadlines[i]=tasks[i].deadline;
+
+    for (int t=0;t<horizon;t++) {
+        int chosen=-1;
+        for (int i=0;i<n;i++) {
+            if (t % tasks[i].period == 0) {
+                tasks[i].remaining = tasks[i].exec_time;
+                deadlines[i] = t + tasks[i].deadline;
+                tasks[i].waiting_time += (t - tasks[i].last_finish);
+            }
+            if (tasks[i].remaining > 0) {
+                if (chosen==-1 || deadlines[i] < deadlines[chosen])
+                    chosen=i;
+            }
+        }
+        if (chosen!=-1) {
+            tasks[chosen].remaining--;
+            schedule[t]=tasks[chosen].id;
+            if (tasks[chosen].remaining==0) {
+                tasks[chosen].last_finish=t+1;
+                tasks[chosen].completion_time=t+1;
+                tasks[chosen].turnaround_time += (t+1);
+            }
+        } else schedule[t]=-1;
+    }
+
+    print_gantt_chart(schedule,horizon);
+
+    printf("\nID\tBT\tPeriod\tDeadline\tCT\tWT\tTAT\n");
+    double avg_wait=0, avg_turn=0;
+    for (int i=0;i<n;i++) {
+        printf("%d\t%d\t%d\t%d\t\t%d\t%d\t%d\n", tasks[i].id, tasks[i].exec_time,
+               tasks[i].period, tasks[i].deadline, tasks[i].completion_time,
+               tasks[i].waiting_time, tasks[i].turnaround_time);
+        avg_wait += tasks[i].waiting_time;
+        avg_turn += tasks[i].turnaround_time;
+    }
+    printf("\nAverage Waiting Time: %.2f", avg_wait/n);
+    printf("\nAverage Turnaround Time: %.2f\n", avg_turn/n);
+
+    return 0;
+}
