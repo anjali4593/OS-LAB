@@ -1,0 +1,143 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int search(int key, int frame[], int n) {
+    for (int i = 0; i < n; i++) {
+        if (frame[i] == key) return i;
+    }
+    return -1;
+}
+
+int fifo(int pages[], int n, int frames) {
+    int frame[frames], count = 0, index = 0;
+    for (int i = 0; i < frames; i++) frame[i] = -1;
+
+    for (int i = 0; i < n; i++) {
+        if (search(pages[i], frame, frames) == -1) {
+            frame[index] = pages[i];
+            index = (index + 1) % frames;
+            count++;
+        }
+    }
+    return count;
+}
+
+int lru(int pages[], int n, int frames) {
+    int frame[frames], count = 0, time[frames];
+    for (int i = 0; i < frames; i++) {
+        frame[i] = -1;
+        time[i] = -1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        int pos = search(pages[i], frame, frames);
+        if (pos == -1) {
+            int min = 0;
+            for (int j = 1; j < frames; j++) {
+                if (time[j] < time[min]) min = j;
+            }
+            frame[min] = pages[i];
+            time[min] = i;
+            count++;
+        } else {
+            time[pos] = i;
+        }
+    }
+    return count;
+}
+
+int optimal(int pages[], int n, int frames) {
+    int frame[frames], count = 0;
+    for (int i = 0; i < frames; i++) frame[i] = -1;
+
+    for (int i = 0; i < n; i++) {
+        if (search(pages[i], frame, frames) == -1) {
+            int replace = -1, farthest = i;
+            for (int j = 0; j < frames; j++) {
+                int k;
+                for (k = i + 1; k < n; k++) {
+                    if (frame[j] == pages[k]) break;
+                }
+                if (k == n) {
+                    replace = j;
+                    break;
+                }
+                if (k > farthest) {
+                    farthest = k;
+                    replace = j;
+                }
+            }
+            if (replace == -1) replace = 0;
+            frame[replace] = pages[i];
+            count++;
+        }
+    }
+    return count;
+}
+
+void printTable(int totalPages, int frames[], int numFrames, int fifoRes[], int lruRes[], int optRes[]) {
+    printf("\n+------------");
+    for (int i = 0; i < numFrames; i++) printf("+-------------");
+    printf("+\n");
+
+    printf("| Algorithm  ");
+    for (int i = 0; i < numFrames; i++) printf("| %2d Frames PF ", frames[i]);
+    printf("|\n");
+
+    printf("+------------");
+    for (int i = 0; i < numFrames; i++) printf("+-------------");
+    printf("+\n");
+
+    printf("| FIFO       ");
+    for (int i = 0; i < numFrames; i++) printf("|     %3d     ", fifoRes[i]);
+    printf("|\n");
+
+    printf("| LRU        ");
+    for (int i = 0; i < numFrames; i++) printf("|     %3d     ", lruRes[i]);
+    printf("|\n");
+
+    printf("| Optimal    ");
+    for (int i = 0; i < numFrames; i++) printf("|     %3d     ", optRes[i]);
+    printf("|\n");
+
+    printf("+------------");
+    for (int i = 0; i < numFrames; i++) printf("+-------------");
+    printf("+\n");
+
+    printf("| Total Pages: %-3d", totalPages);
+    for (int i = 0; i < numFrames; i++) printf("             ");
+    printf("|\n");
+
+    printf("+-----------------------------------------+\n");
+}
+
+int main() {
+    int n;
+    printf("Enter number of pages: ");
+    scanf("%d", &n);
+    int pages[n];
+    printf("Enter reference string: ");
+    for (int i = 0; i < n; i++) scanf("%d", &pages[i]);
+
+    int numFrames;
+    printf("Enter how many frame sizes you want to test: ");
+    scanf("%d", &numFrames);
+
+    int frames[numFrames];
+    for (int i = 0; i < numFrames; i++) {
+        printf("Enter frame size %d: ", i + 1);
+        scanf("%d", &frames[i]);
+    }
+
+    int fifoRes[numFrames], lruRes[numFrames], optRes[numFrames];
+    for (int i = 0; i < numFrames; i++) {
+        fifoRes[i] = fifo(pages, n, frames[i]);
+        lruRes[i] = lru(pages, n, frames[i]);
+        optRes[i] = optimal(pages, n, frames[i]);
+    }
+
+    printTable(n, frames, numFrames, fifoRes, lruRes, optRes);
+
+    return 0;
+}
+
